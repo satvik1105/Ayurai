@@ -1,0 +1,42 @@
+
+@import "tailwindcss";
+
+/* AYURAI — BOTANICAL THEME */
+:root {
+  --ayur-bg: #f3ebdd;
+  --ayur-surface: #fffcf5;
+  --ayur-olive: #697653;
+  --ayur-forest: #344936;
+  --ayur-text: #403d2c;
+  --ayur-muted: #706956;
+  --ayur-border: #ded6c5;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 100px;
+}
+
+body {
+  background-color: var(--ayur-bg);
+  color: var(--ayur-text);
+  margin: 0;
+}
+
+::selection {
+  background: #d9dfc9;
+  color: var(--ayur-forest);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ayur-olive);
+  outline-offset: 3px;
+}
