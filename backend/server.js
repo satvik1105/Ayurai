@@ -59,6 +59,29 @@ app.get("/", (req, res) => {
   });
 });
 
+// Health check endpoint for UptimeRobot
+app.get("/health", (req, res) => {
+  return res.status(200).json({
+    success: true,
+    status: "healthy",
+    service: "AyurAI backend",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Dedicated lightweight endpoint for uptime monitoring (e.g. UptimeRobot).
+// No database or AI-provider calls are made from this route.
+app.get("/health", (req, res) => {
+  return res.status(200).json({
+    success: true,
+    status: "healthy",
+    service: "AyurAI backend",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 /* =====================================================
    AI WELLNESS ROUTINE
 ===================================================== */
@@ -436,7 +459,7 @@ app.get("/api/routines/:clerkId/favorites", async (req, res) => {
 
 app.post("/api/routines/:clerkId/current", async (req, res) => {
   try {
-    const { clerkId } = req.params;
+        const { clerkId } = req.params;
     const { routineId } = req.body;
 
     if (!clerkId || !routineId) {
@@ -885,8 +908,7 @@ app.get("/api/chat/conversations", async (req, res) => {
       },
     });
 
-    return res.json({
-      success: true,
+    return res.json({      success: true,
       conversations,
     });
   } catch (error) {
@@ -1337,14 +1359,12 @@ ADDITIONAL RESPONSE RULES:
     // 16. GENERATE AI RESPONSE
     // =================================================
 
-    let answer = "";
-    let selectedModel = "";
-    let lastError = null;
+    let assistantContent = "";
+    let chatModel = "";
+    let lastChatError = null;
 
     for (const model of AI_MODELS) {
       try {
-        console.log("🤖 AyurAI Chat model:", model);
-
         const completion = await ai.chat.completions.create({
           model,
           messages: chatMessages,
@@ -1352,352 +1372,170 @@ ADDITIONAL RESPONSE RULES:
           temperature: 0.4,
         });
 
-        let responseContent =
-          completion?.choices?.[0]?.message?.content ?? "";
+        let responseContent = completion?.choices?.[0]?.message?.content ?? "";
 
         if (Array.isArray(responseContent)) {
           responseContent = responseContent
             .map((part) =>
-              typeof part === "string"
-                ? part
-                : part?.text || ""
+              typeof part === "string" ? part : part?.text || ""
             )
             .join("\n");
         }
 
-        if (
-          typeof responseContent === "string" &&
-          responseContent.trim()
-        ) {
-          answer = responseContent.trim();
-          selectedModel = model;
-          break;
+        if (typeof responseContent !== "string" || !responseContent.trim()) {
+          throw new Error(`Model ${model} returned an empty response.`);
         }
 
-        throw new Error("AI returned an empty response.");
-
+        assistantContent = responseContent.trim();
+        chatModel = model;
+        break;
       } catch (error) {
-        lastError = error;
-
+        lastChatError = error;
         console.error("CHAT MODEL FAILED:", {
           model,
           message: error?.message,
-          status: error?.status,
         });
       }
     }
 
-    // 17. Handle AI failure
-    if (!answer) {
+    if (!assistantContent) {
       return res.status(502).json({
         success: false,
-        message:
-          "AyurAI could not generate a response. Please try again.",
-        error: lastError?.message || "All AI models failed.",
-        routineUpdated,
+        message: "Unable to generate a response. Please try again.",
+        error: lastChatError?.message || "All available AI models failed.",
       });
     }
-
-    // =================================================
-    // 18. SAVE ASSISTANT RESPONSE
-    // =================================================
 
     const assistantMessage = await prisma.chatMessage.create({
       data: {
         conversationId: conversation.id,
         role: "assistant",
-        content: answer,
+        content: assistantContent,
       },
     });
 
-    // 19. Update conversation
-    const updatedConversation = await prisma.conversation.update({
-      where: {
-        id: conversation.id,
-      },
-      data: {
-        title,
-      },
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { title },
     });
-
-    // =================================================
-    // 20. RETURN RESPONSE TO FRONTEND
-    // =================================================
 
     return res.json({
       success: true,
-      conversation: updatedConversation,
       userMessage,
       assistantMessage,
-      model: selectedModel,
       routineUpdated,
-      routineId: currentRoutine?.id || null,
+      model: chatModel,
     });
-
   } catch (error) {
-    console.error("CHAT MESSAGE ERROR:", error);
+    console.error("SEND CHAT MESSAGE ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Unable to process your message.",
-      error: error?.message || "Unknown error.",
+      message: "Unable to send message.",
     });
-  }
-});
-
-/* =====================================================
-   AYURAI SMART REMINDERS + WEB PUSH
-===================================================== */
-
-const VAPID_READY = Boolean(
-  process.env.VAPID_PUBLIC_KEY &&
-  process.env.VAPID_PRIVATE_KEY &&
-  process.env.VAPID_SUBJECT
-);
-
-if (VAPID_READY) {
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT,
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
-} else {
-  console.warn("⚠️ VAPID keys missing. Push delivery is disabled.");
-}
-
-function getReminderUserId(req) {
-  return getAuth(req)?.userId || null;
-}
-
-function validTime(value) {
-  return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
-function validTimezone(value) {
-  if (typeof value !== "string" || value.length > 80) return false;
-  try { new Intl.DateTimeFormat("en-US", { timeZone: value }); return true; }
-  catch { return false; }
-}
-
-function localDateTimeParts(date, timezone) {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: timezone,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-    weekday: "short",
-  }).formatToParts(date);
-  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
-}
-
-function dayKey(shortDay) {
-  return ({ Mon: "Mon", Tue: "Tue", Wed: "Wed", Thu: "Thu", Fri: "Fri", Sat: "Sat", Sun: "Sun" })[shortDay];
-}
-function inQuietHours(nowMinutes, start, end) {
-  if (!validTime(start) || !validTime(end)) return false;
-  const toMinutes = (v) => Number(v.slice(0, 2)) * 60 + Number(v.slice(3, 5));
-  const a = toMinutes(start), b = toMinutes(end);
-  if (a === b) return false;
-  return a < b ? nowMinutes >= a && nowMinutes < b : nowMinutes >= a || nowMinutes < b;
-}
-
-function reminderIsDue(reminder, now) {
-  const parts = localDateTimeParts(now, reminder.timezone || "Asia/Kolkata");
-  const today = dayKey(parts.weekday);
-  if (!reminder.days.includes(today)) return null;
-  const currentMinutes = Number(parts.hour) * 60 + Number(parts.minute);
-  if (inQuietHours(currentMinutes, reminder.quietHoursStart, reminder.quietHoursEnd)) return null;
-  const [startHour, startMinute] = reminder.time.split(":").map(Number);
-  const start = startHour * 60 + startMinute;
-  let dueMinute = null;
-  if (reminder.intervalMinutes && reminder.intervalMinutes >= 15 && validTime(reminder.endTime)) {
-    const [endHour, endMinute] = reminder.endTime.split(":").map(Number);
-    const end = endHour * 60 + endMinute;
-    if (currentMinutes >= start && currentMinutes <= end &&
-        (currentMinutes - start) % reminder.intervalMinutes === 0) dueMinute = currentMinutes;
-  } else if (currentMinutes === start) {
-    dueMinute = start;
-  }
-  if (dueMinute === null) return null;
-  return `${parts.year}-${parts.month}-${parts.day}T${String(Math.floor(dueMinute / 60)).padStart(2, "0")}:${String(dueMinute % 60).padStart(2, "0")}:00[${reminder.timezone}]`;
-}
-
-async function ensureReminderUser(clerkId) {
-  await prisma.user.upsert({ where: { clerkId }, update: {}, create: { clerkId } });
-}
-
-/* Public VAPID key for the authenticated frontend setup */
-app.get("/api/reminders/vapid-public-key", (req, res) => {
-  if (!VAPID_READY) return res.status(503).json({ success: false, message: "Push notifications are not configured." });
-  return res.json({ success: true, publicKey: process.env.VAPID_PUBLIC_KEY });
-});
-
-/* List reminders belonging only to the signed-in user */
-app.get("/api/reminders", async (req, res) => {
-  try {
-    const clerkId = getReminderUserId(req);
-    if (!clerkId) return res.status(401).json({ success: false, message: "Authentication required." });
-    const reminders = await prisma.reminder.findMany({ where: { clerkId }, orderBy: { createdAt: "asc" } });
-    return res.json({ success: true, reminders });
-  } catch (error) {
-    console.error("REMINDER LIST ERROR:", error);
-    return res.status(500).json({ success: false, message: "Unable to load reminders." });
-  }
-});
-
-/* Create a reminder */
-app.post("/api/reminders", async (req, res) => {
-  try {
-    const clerkId = getReminderUserId(req);
-    if (!clerkId) return res.status(401).json({ success: false, message: "Authentication required." });
-    const body = req.body || {};
-    const title = typeof body.title === "string" ? body.title.trim() : "";
-    const time = body.time;
-    const endTime = body.endTime || null;
-    const intervalMinutes = body.intervalMinutes == null ? null : Number(body.intervalMinutes);
-    const days = Array.isArray(body.days) ? body.days : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const allowedDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const timezone = body.timezone || "Asia/Kolkata";
-    const snoozeMinutes = body.snoozeMinutes == null ? 10 : Number(body.snoozeMinutes);
-    if (!title || title.length > 100 || !validTime(time) || !validTimezone(timezone) || !days.length || days.some((d) => !allowedDays.includes(d))) {
-      return res.status(400).json({ success: false, message: "Provide a title, valid time, timezone and valid days." });
-    }
-    if (endTime && !validTime(endTime)) return res.status(400).json({ success: false, message: "endTime must use HH:mm format." });
-    if (intervalMinutes !== null && (!Number.isInteger(intervalMinutes) || intervalMinutes < 15 || intervalMinutes > 720 || !endTime)) {
-      return res.status(400).json({ success: false, message: "Intervals must be 15–720 minutes and require an end time." });
-    }
-    if (![5, 10, 15, 30].includes(snoozeMinutes)) return res.status(400).json({ success: false, message: "Snooze must be 5, 10, 15 or 30 minutes." });
-    for (const key of ["quietHoursStart", "quietHoursEnd"]) {
-      if (body[key] != null && !validTime(body[key])) return res.status(400).json({ success: false, message: `${key} must use HH:mm format.` });
-    }
-    await ensureReminderUser(clerkId);
-    const reminder = await prisma.reminder.create({
-      data: {
-        clerkId, title, type: typeof body.type === "string" ? body.type.slice(0, 40) : "custom",
-        time, endTime, intervalMinutes, days: [...new Set(days)], timezone,
-        enabled: body.enabled !== false, snoozeMinutes,
-        quietHoursStart: body.quietHoursStart || null, quietHoursEnd: body.quietHoursEnd || null,
-      },
-    });
-    return res.status(201).json({ success: true, reminder });
-  } catch (error) {
-    console.error("REMINDER CREATE ERROR:", error);
-    return res.status(500).json({ success: false, message: "Unable to create reminder." });
-  }
-});
-
-/* Update a reminder; only explicitly supplied fields are changed */
-app.patch("/api/reminders/:id", async (req, res) => {
-  try {
-    const clerkId = getReminderUserId(req);
-    if (!clerkId) return res.status(401).json({ success: false, message: "Authentication required." });
-    const existing = await prisma.reminder.findFirst({ where: { id: req.params.id, clerkId } });
-    if (!existing) return res.status(404).json({ success: false, message: "Reminder not found." });
-    const b = req.body || {}, data = {};
-    if (b.title !== undefined) { if (typeof b.title !== "string" || !b.title.trim() || b.title.trim().length > 100) return res.status(400).json({ success: false, message: "Invalid title." }); data.title = b.title.trim(); }
-    if (b.time !== undefined) { if (!validTime(b.time)) return res.status(400).json({ success: false, message: "Invalid time." }); data.time = b.time; }
-    if (b.endTime !== undefined) { if (b.endTime !== null && !validTime(b.endTime)) return res.status(400).json({ success: false, message: "Invalid end time." }); data.endTime = b.endTime; }
-    if (b.intervalMinutes !== undefined) { const n = b.intervalMinutes === null ? null : Number(b.intervalMinutes); if (n !== null && (!Number.isInteger(n) || n < 15 || n > 720)) return res.status(400).json({ success: false, message: "Invalid interval." }); data.intervalMinutes = n; }
-    if (b.days !== undefined) { const allowed = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]; if (!Array.isArray(b.days) || !b.days.length || b.days.some((d) => !allowed.includes(d))) return res.status(400).json({ success: false, message: "Invalid days." }); data.days = [...new Set(b.days)]; }
-    if (b.timezone !== undefined) { if (!validTimezone(b.timezone)) return res.status(400).json({ success: false, message: "Invalid timezone." }); data.timezone = b.timezone; }
-    if (b.enabled !== undefined) { if (typeof b.enabled !== "boolean") return res.status(400).json({ success: false, message: "enabled must be boolean." }); data.enabled = b.enabled; }
-    if (b.snoozeMinutes !== undefined) { if (![5, 10, 15, 30].includes(Number(b.snoozeMinutes))) return res.status(400).json({ success: false, message: "Invalid snooze duration." }); data.snoozeMinutes = Number(b.snoozeMinutes); }
-    for (const key of ["quietHoursStart", "quietHoursEnd"]) { if (b[key] !== undefined) { if (b[key] !== null && !validTime(b[key])) return res.status(400).json({ success: false, message: `Invalid ${key}.` }); data[key] = b[key]; } }
-    if (b.type !== undefined) data.type = String(b.type).slice(0, 40);
-    const reminder = await prisma.reminder.update({ where: { id: existing.id }, data });
-    return res.json({ success: true, reminder });
-  } catch (error) {
-    console.error("REMINDER UPDATE ERROR:", error);
-    return res.status(500).json({ success: false, message: "Unable to update reminder." });
-  }
-});
-
-app.delete("/api/reminders/:id", async (req, res) => {
-  try {
-    const clerkId = getReminderUserId(req);
-    if (!clerkId) return res.status(401).json({ success: false, message: "Authentication required." });
-    const result = await prisma.reminder.deleteMany({ where: { id: req.params.id, clerkId } });
-    if (!result.count) return res.status(404).json({ success: false, message: "Reminder not found." });
-    return res.json({ success: true, message: "Reminder deleted." });
-  } catch (error) {
-    console.error("REMINDER DELETE ERROR:", error);
-    return res.status(500).json({ success: false, message: "Unable to delete reminder." });
-  }
-});
-
-/* Save/update this browser's push subscription */
-app.post("/api/reminders/subscriptions", async (req, res) => {
-  try {
-    const clerkId = getReminderUserId(req);
-    if (!clerkId) return res.status(401).json({ success: false, message: "Authentication required." });
-    if (!VAPID_READY) return res.status(503).json({ success: false, message: "Push notifications are not configured." });
-    const sub = req.body?.subscription;
-    if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth || typeof sub.endpoint !== "string") return res.status(400).json({ success: false, message: "Invalid push subscription." });
-    await ensureReminderUser(clerkId);
-    const subscription = await prisma.pushSubscription.upsert({
-      where: { endpoint: sub.endpoint },
-      update: { clerkId, p256dh: sub.keys.p256dh, auth: sub.keys.auth, expirationTime: sub.expirationTime ?? null, userAgent: String(req.headers["user-agent"] || "").slice(0, 500) },
-      create: { clerkId, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth, expirationTime: sub.expirationTime ?? null, userAgent: String(req.headers["user-agent"] || "").slice(0, 500) },
-    });
-    return res.status(201).json({ success: true, subscriptionId: subscription.id });
-  } catch (error) {
-    console.error("PUSH SUBSCRIPTION SAVE ERROR:", error);
-    return res.status(500).json({ success: false, message: "Unable to save push subscription." });
-  }
-});
-
-app.delete("/api/reminders/subscriptions", async (req, res) => {
-  try {
-    const clerkId = getReminderUserId(req);
-    if (!clerkId) return res.status(401).json({ success: false, message: "Authentication required." });
-    const endpoint = req.body?.endpoint;
-    if (typeof endpoint !== "string" || !endpoint) return res.status(400).json({ success: false, message: "Subscription endpoint is required." });
-    await prisma.pushSubscription.deleteMany({ where: { clerkId, endpoint } });
-    return res.json({ success: true });
-  } catch (error) {
-    console.error("PUSH SUBSCRIPTION DELETE ERROR:", error);
-    return res.status(500).json({ success: false, message: "Unable to remove push subscription." });
   }
 });
 
 /* Send due notifications. The unique reminderId + scheduledFor key prevents duplicate deliveries. */
 async function dispatchDueReminders() {
   if (!VAPID_READY) return;
+
   const now = new Date();
-  const reminders = await prisma.reminder.findMany({ where: { enabled: true } });
+  const reminders = await prisma.reminder.findMany({
+    where: { enabled: true },
+  });
+
   for (const reminder of reminders) {
     try {
       const scheduledKey = reminderIsDue(reminder, now);
       if (!scheduledKey) continue;
+
       // Use a stable UTC minute key after deriving the local due minute.
-      const scheduledFor = new Date(Math.floor(now.getTime() / 60000) * 60000);
-      const delivery = await prisma.reminderDelivery.create({ data: { reminderId: reminder.id, scheduledFor, status: "pending" } }).catch((error) => {
-        if (error?.code === "P2002") return null;
-        throw error;
-      });
+      const scheduledFor = new Date(
+        Math.floor(now.getTime() / 60000) * 60000
+      );
+
+      const delivery = await prisma.reminderDelivery
+        .create({
+          data: {
+            reminderId: reminder.id,
+            scheduledFor,
+            status: "pending",
+          },
+        })
+        .catch((error) => {
+          if (error?.code === "P2002") return null;
+          throw error;
+        });
+
       if (!delivery) continue;
-      const subscriptions = await prisma.pushSubscription.findMany({ where: { clerkId: reminder.clerkId } });
-      const payload = JSON.stringify({ title: reminder.title, body: "It's time for your AyurAI wellness reminder.", tag: `ayurai-${reminder.id}`, url: "/" });
+
+      const subscriptions = await prisma.pushSubscription.findMany({
+        where: { clerkId: reminder.clerkId },
+      });
+
+      const payload = JSON.stringify({
+        title: reminder.title,
+        body: "It's time for your AyurAI wellness reminder.",
+        tag: `ayurai-${reminder.id}`,
+        url: "/",
+      });
+
       let delivered = 0;
+
       for (const sub of subscriptions) {
         try {
-          await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.p256dh,
+                auth: sub.auth,
+              },
+            },
+            payload
+          );
+
           delivered += 1;
         } catch (pushError) {
-          console.error("PUSH DELIVERY ERROR:", pushError?.statusCode || pushError?.message);
-          if (pushError?.statusCode === 404 || pushError?.statusCode === 410) await prisma.pushSubscription.deleteMany({ where: { id: sub.id } });
+          console.error(
+            "PUSH DELIVERY ERROR:",
+            pushError?.statusCode || pushError?.message
+          );
+
+          if (
+            pushError?.statusCode === 404 ||
+            pushError?.statusCode === 410
+          ) {
+            await prisma.pushSubscription.deleteMany({
+              where: { id: sub.id },
+            });
+          }
         }
       }
-      await prisma.reminderDelivery.update({ where: { id: delivery.id }, data: { status: delivered ? "sent" : "no_subscription", sentAt: delivered ? new Date() : null } });
+
+      await prisma.reminderDelivery.update({
+        where: { id: delivery.id },
+        data: {
+          status: delivered ? "sent" : "no_subscription",
+          sentAt: delivered ? new Date() : null,
+        },
+      });
     } catch (error) {
-      console.error("REMINDER DISPATCH ERROR:", reminder.id, error?.message || error);
+      console.error(
+        "REMINDER DISPATCH ERROR:",
+        reminder.id,
+        error?.message || error
+      );
     }
   }
 }
 
 cron.schedule("* * * * *", () => {
-  dispatchDueReminders().catch((error) => console.error("REMINDER SCHEDULER ERROR:", error));
+  dispatchDueReminders().catch((error) =>
+    console.error("REMINDER SCHEDULER ERROR:", error)
+  );
 });
-
 
 /* =====================================================
    START SERVER
