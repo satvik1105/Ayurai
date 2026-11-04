@@ -1455,6 +1455,182 @@ if (VAPID_READY) {
 }
 
 /* Send due notifications. The unique reminderId + scheduledFor key prevents duplicate deliveries. */
+// ========================================
+// REMINDER DUE TIME CALCULATOR
+// ========================================
+
+function reminderIsDue(reminder, now = new Date()) {
+  try {
+    const timezone = reminder.timezone || "Asia/Kolkata";
+
+    // Get current date and time in reminder's timezone
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      weekday: "short",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+
+    const parts = formatter.formatToParts(now);
+
+    const getPart = (type) =>
+      parts.find((part) => part.type === type)?.value;
+
+    const weekday = getPart("weekday");
+    const year = Number(getPart("year"));
+    const month = Number(getPart("month"));
+    const day = Number(getPart("day"));
+    const hour = Number(getPart("hour"));
+    const minute = Number(getPart("minute"));
+
+    // Check whether today is a selected reminder day
+    const allowedDays = reminder.days || [
+      "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
+    ];
+
+    if (!allowedDays.includes(weekday)) {
+      return null;
+    }
+
+    // Parse reminder start time
+    const [startHour, startMinute] = reminder.time.split(":").map(Number);
+
+    if (
+      !Number.isInteger(startHour) ||
+      !Number.isInteger(startMinute) ||
+      startHour < 0 ||
+      startHour > 23 ||
+      startMinute < 0 ||
+      startMinute > 59
+    ) {
+      return null;
+    }
+
+    const currentMinutes = hour * 60 + minute;
+    const startMinutes = startHour * 60 + startMinute;
+
+    let scheduledMinutes = startMinutes;
+
+    // Handle interval-based reminders
+    if (reminder.intervalMinutes && reminder.intervalMinutes > 0) {
+      if (!reminder.endTime) {
+        // Without an end time, send only at the start time
+        if (currentMinutes !== startMinutes) return null;
+      } else {
+        const [endHour, endMinute] = reminder.endTime
+          .split(":")
+          .map(Number);
+
+        if (
+          !Number.isInteger(endHour) ||
+          !Number.isInteger(endMinute)
+        ) {
+          return null;
+        }
+
+        const endMinutes = endHour * 60 + endMinute;
+
+        if (
+          currentMinutes < startMinutes ||
+          currentMinutes > endMinutes
+        ) {
+          return null;
+        }
+
+        const elapsed = currentMinutes - startMinutes;
+
+        if (elapsed % reminder.intervalMinutes !== 0) {
+          return null;
+        }
+
+        scheduledMinutes =
+          startMinutes +
+          Math.floor(elapsed / reminder.intervalMinutes) *
+            reminder.intervalMinutes;
+      }
+    } else {
+      // Normal reminder: exact scheduled minute
+      if (currentMinutes !== startMinutes) {
+        return null;
+      }
+    }
+
+    // Convert the scheduled local time into a UTC Date
+    const scheduledHour = Math.floor(scheduledMinutes / 60);
+    const scheduledMinute = scheduledMinutes % 60;
+
+    const localDate = new Date(
+      Date.UTC(year, month - 1, day, scheduledHour, scheduledMinute)
+    );
+
+    const utcFormatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+
+    // Adjust UTC timestamp until its displayed local time matches
+    const target = {
+      year,
+      month,
+      day,
+      hour: scheduledHour,
+      minute: scheduledMinute,
+    };
+
+    let timestamp = localDate.getTime();
+
+    for (let i = 0; i < 3; i++) {
+      const utcParts = utcFormatter.formatToParts(new Date(timestamp));
+
+      const getUtcPart = (type) =>
+        Number(utcParts.find((part) => part.type === type)?.value);
+
+      const displayed = {
+        year: getUtcPart("year"),
+        month: getUtcPart("month"),
+        day: getUtcPart("day"),
+        hour: getUtcPart("hour"),
+        minute: getUtcPart("minute"),
+      };
+
+      const difference =
+        Date.UTC(
+          target.year,
+          target.month - 1,
+          target.day,
+          target.hour,
+          target.minute
+        ) -
+        Date.UTC(
+          displayed.year,
+          displayed.month - 1,
+          displayed.day,
+          displayed.hour,
+          displayed.minute
+        );
+
+      if (difference === 0) break;
+
+      timestamp += difference;
+    }
+
+    return new Date(timestamp);
+  } catch (error) {
+    console.error("REMINDER TIME CALCULATION ERROR:", error);
+    return null;
+  }
+}
+
+
 async function dispatchDueReminders() {
   if (!VAPID_READY) return;
 
