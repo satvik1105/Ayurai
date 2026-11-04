@@ -1436,6 +1436,24 @@ ADDITIONAL RESPONSE RULES:
   }
 });
 
+
+// VAPID configuration for Web Push notifications
+const VAPID_READY = Boolean(
+  process.env.VAPID_PUBLIC_KEY &&
+  process.env.VAPID_PRIVATE_KEY &&
+  process.env.VAPID_SUBJECT
+);
+
+if (VAPID_READY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+} else {
+  console.warn("VAPID keys missing. Push notifications are disabled.");
+}
+
 /* Send due notifications. The unique reminderId + scheduledFor key prevents duplicate deliveries. */
 async function dispatchDueReminders() {
   if (!VAPID_READY) return;
