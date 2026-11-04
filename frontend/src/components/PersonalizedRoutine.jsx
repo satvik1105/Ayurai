@@ -213,7 +213,7 @@ function PersonalizedRoutine({ selectedGoal, answer1, answer2 }) {
         setRoutineId(null);
         setIsCurrent(false);
 
-        const response = await fetch("http://https://ayurai-backend-u1e8.onrender.com/api/ai", {
+        const response = await fetch("https://ayurai-backend-u1e8.onrender.com/api/ai", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -316,7 +316,7 @@ Do not invent personal information about the user.
       setError("");
 
       const response = await fetch(
-        `http://https://ayurai-backend-u1e8.onrender.com/api/routines/${userId}/current`,
+        `https://ayurai-backend-u1e8.onrender.com/api/routines/${userId}/current`,
         {
           method: "POST",
           headers: {

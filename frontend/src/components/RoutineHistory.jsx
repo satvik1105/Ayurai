@@ -96,7 +96,7 @@ function RoutineHistory() {
       setError("");
 
       const response = await fetch(
-        `http://https://ayurai-backend-u1e8.onrender.com/api/routines/${userId}`
+        `https://ayurai-backend-u1e8.onrender.com/api/routines/${userId}`
       );
 
       const data = await response.json();
@@ -212,7 +212,7 @@ function RoutineHistory() {
       );
 
       const response = await fetch(
-        `http://https://ayurai-backend-u1e8.onrender.com/api/routines/${userId}/favorites`,
+        `https://ayurai-backend-u1e8.onrender.com/api/routines/${userId}/favorites`,
         {
           method: "POST",
 

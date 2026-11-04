@@ -189,7 +189,7 @@ function AIPersonalization({ selectedGoal, setAnswers }) {
 
       const token = await getToken();
 
-      const response = await fetch("http://https://ayurai-backend-u1e8.onrender.com/api/user", {
+      const response = await fetch("https://ayurai-backend-u1e8.onrender.com/api/user", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import "./Chatbot.css";
 
-const API_URL = "http://https://ayurai-backend-u1e8.onrender.com/api/chat";
+const API_URL = "https://ayurai-backend-u1e8.onrender.com/api/chat";
 
 const suggestedPrompts = [
   "Suggest a healthy morning routine",
