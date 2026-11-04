@@ -24,7 +24,7 @@ import {
   Check,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/chat";
+const API_URL = "http://https://ayurai-backend-u1e8.onrender.com/api/chat";
 
 const suggestions = [
   {

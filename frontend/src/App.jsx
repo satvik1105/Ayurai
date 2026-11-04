@@ -179,7 +179,7 @@ function App() {
         }
 
         const response = await fetch(
-          "http://localhost:5000/api/user",
+          "http://https://ayurai-backend-u1e8.onrender.com/api/user",
           {
             method: "POST",
             headers: {

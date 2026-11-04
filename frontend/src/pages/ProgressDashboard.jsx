@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 
-const API_URL = "http://localhost:5000/api/progress";
-const REMINDERS_API = "http://localhost:5000/api/reminders";
+const API_URL = "http://https://ayurai-backend-u1e8.onrender.com/api/progress";
+const REMINDERS_API = "http://https://ayurai-backend-u1e8.onrender.com/api/reminders";
 const TOTAL_TASKS = 15;
 
 const FALLBACK_SECTIONS = [
