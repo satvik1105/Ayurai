@@ -71,16 +71,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// Health check endpoint for UptimeRobot
-app.get("/health", (req, res) => {
-  return res.status(200).json({
-    success: true,
-    status: "healthy",
-    service: "AyurAI backend",
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-  });
-});
+
 
 // Dedicated lightweight endpoint for uptime monitoring (e.g. UptimeRobot).
 // No database or AI-provider calls are made from this route.
@@ -861,6 +852,354 @@ function getChatUserId(req) {
   const auth = getAuth(req);
   return auth?.userId || null;
 }
+
+
+/* =====================================================
+   AYURAI SMART REMINDERS API
+===================================================== */
+
+// GET ALL REMINDERS
+app.get("/api/reminders", async (req, res) => {
+  try {
+    const clerkId = getChatUserId(req);
+
+    if (!clerkId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const reminders = await prisma.reminder.findMany({
+      where: { clerkId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.json({
+      success: true,
+      reminders,
+    });
+  } catch (error) {
+    console.error("GET REMINDERS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Could not load reminders.",
+    });
+  }
+});
+
+
+// CREATE REMINDER
+app.post("/api/reminders", async (req, res) => {
+  try {
+    const clerkId = getChatUserId(req);
+
+    if (!clerkId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const {
+      title,
+      type,
+      time,
+      endTime,
+      intervalMinutes,
+      timezone,
+      days,
+      enabled,
+      snoozeMinutes,
+      quietHoursStart,
+      quietHoursEnd,
+    } = req.body || {};
+
+    const validTime = (value) =>
+      typeof value === "string" &&
+      /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+
+    if (!title || typeof title !== "string" || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Reminder title is required.",
+      });
+    }
+
+    if (!validTime(time)) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid reminder time is required.",
+      });
+    }
+
+    if (
+      intervalMinutes !== null &&
+      intervalMinutes !== undefined &&
+      (!Number.isInteger(intervalMinutes) || intervalMinutes <= 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid reminder interval.",
+      });
+    }
+
+    const reminder = await prisma.reminder.create({
+      data: {
+        clerkId,
+        title: title.trim(),
+        type: type || "custom",
+        time,
+        endTime: validTime(endTime) ? endTime : null,
+        intervalMinutes: intervalMinutes || null,
+        timezone: timezone || "Asia/Kolkata",
+        days: Array.isArray(days)
+          ? days
+          : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        enabled: enabled !== false,
+        snoozeMinutes: [5, 10, 15].includes(Number(snoozeMinutes))
+          ? Number(snoozeMinutes)
+          : 10,
+        quietHoursStart: validTime(quietHoursStart)
+          ? quietHoursStart
+          : null,
+        quietHoursEnd: validTime(quietHoursEnd)
+          ? quietHoursEnd
+          : null,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Reminder created successfully.",
+      reminder,
+    });
+  } catch (error) {
+    console.error("CREATE REMINDER ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Could not create reminder.",
+    });
+  }
+});
+
+
+// UPDATE REMINDER
+app.patch("/api/reminders/:id", async (req, res) => {
+  try {
+    const clerkId = getChatUserId(req);
+
+    if (!clerkId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const existing = await prisma.reminder.findFirst({
+      where: {
+        id: req.params.id,
+        clerkId,
+      },
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Reminder not found.",
+      });
+    }
+
+    const allowedFields = [
+      "title",
+      "type",
+      "time",
+      "endTime",
+      "intervalMinutes",
+      "timezone",
+      "days",
+      "enabled",
+      "snoozeMinutes",
+      "quietHoursStart",
+      "quietHoursEnd",
+    ];
+
+    const data = {};
+
+    for (const field of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, field)) {
+        data[field] = req.body[field];
+      }
+    }
+
+    if (data.title !== undefined) {
+      if (typeof data.title !== "string" || !data.title.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid reminder title.",
+        });
+      }
+      data.title = data.title.trim();
+    }
+
+    if (data.enabled !== undefined && typeof data.enabled !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid enabled value.",
+      });
+    }
+
+    const reminder = await prisma.reminder.update({
+      where: { id: existing.id },
+      data,
+    });
+
+    return res.json({
+      success: true,
+      message: "Reminder updated successfully.",
+      reminder,
+    });
+  } catch (error) {
+    console.error("UPDATE REMINDER ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Could not update reminder.",
+    });
+  }
+});
+
+
+// DELETE REMINDER
+app.delete("/api/reminders/:id", async (req, res) => {
+  try {
+    const clerkId = getChatUserId(req);
+
+    if (!clerkId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const existing = await prisma.reminder.findFirst({
+      where: {
+        id: req.params.id,
+        clerkId,
+      },
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Reminder not found.",
+      });
+    }
+
+    await prisma.reminder.delete({
+      where: { id: existing.id },
+    });
+
+    return res.json({
+      success: true,
+      message: "Reminder deleted successfully.",
+    });
+  } catch (error) {
+    console.error("DELETE REMINDER ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Could not delete reminder.",
+    });
+  }
+});
+
+
+// GET VAPID PUBLIC KEY
+app.get("/api/reminders/vapid-public-key", (req, res) => {
+  const clerkId = getChatUserId(req);
+
+  if (!clerkId) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required.",
+    });
+  }
+
+  if (!process.env.VAPID_PUBLIC_KEY) {
+    return res.status(503).json({
+      success: false,
+      message: "Push notifications are not configured.",
+    });
+  }
+
+  return res.json({
+    success: true,
+    publicKey: process.env.VAPID_PUBLIC_KEY,
+  });
+});
+
+
+// SAVE PUSH SUBSCRIPTION
+app.post("/api/reminders/subscriptions", async (req, res) => {
+  try {
+    const clerkId = getChatUserId(req);
+
+    if (!clerkId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const subscription = req.body?.subscription;
+    const endpoint = subscription?.endpoint;
+    const p256dh = subscription?.keys?.p256dh;
+    const auth = subscription?.keys?.auth;
+
+    if (!endpoint || !p256dh || !auth) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid push subscription.",
+      });
+    }
+
+    const savedSubscription = await prisma.pushSubscription.upsert({
+      where: { endpoint },
+      update: {
+        clerkId,
+        p256dh,
+        auth,
+        expirationTime: subscription.expirationTime || null,
+        userAgent: req.headers["user-agent"] || null,
+      },
+      create: {
+        clerkId,
+        endpoint,
+        p256dh,
+        auth,
+        expirationTime: subscription.expirationTime || null,
+        userAgent: req.headers["user-agent"] || null,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Push subscription saved successfully.",
+      subscriptionId: savedSubscription.id,
+    });
+  } catch (error) {
+    console.error("SAVE PUSH SUBSCRIPTION ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Could not save push subscription.",
+    });
+  }
+});
+
 
 /* CREATE NEW CHAT */
 
