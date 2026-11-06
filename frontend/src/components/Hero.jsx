@@ -173,35 +173,43 @@ export default function Hero({
       id="home"
       className="relative isolate overflow-hidden bg-[#f3ebdd] text-[#173f2c]"
     >
+      {/* Background image */}
       <div className="absolute inset-0 -z-20">
         <img
           src="/images/ayurai-herbal-hero.png"
           alt=""
-          className="h-full w-full object-cover object-[65%_center]"
+          className="h-full w-full object-cover object-[72%_center] lg:object-[65%_center]"
         />
       </div>
 
-      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#fff8e9]/75 via-[#fff8e9]/35 to-transparent" />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-transparent to-[#f3ebdd]/25" />
+      {/* Mobile-friendly background overlays */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#fff8e9]/85 via-[#fff8e9]/55 to-[#fff8e9]/15 lg:from-[#fff8e9]/75 lg:via-[#fff8e9]/35 lg:to-transparent" />
 
-      <div className="mx-auto max-w-[1500px] px-5 pb-8 pt-5 sm:px-8 lg:px-12">
-        <div className="grid min-h-[510px] items-center gap-8 lg:min-h-[510px] lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-transparent to-[#f3ebdd]/35" />
+
+      <div className="mx-auto max-w-[1500px] px-4 pb-6 pt-5 sm:px-8 sm:pb-8 lg:px-12">
+        <div className="grid min-h-0 items-center gap-5 sm:gap-8 lg:min-h-[510px] lg:grid-cols-[1.05fr_0.95fr]">
+
+          {/* HERO CONTENT */}
           <motion.div
             initial={shouldReduceMotion ? false : { opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65 }}
-            className="relative z-10 max-w-[650px] py-8"
+            className="relative z-10 min-w-0 max-w-[650px] py-7 sm:py-10 lg:py-8"
           >
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#d9dfc9] bg-[#fffdf5]/85 px-4 py-2.5 shadow-sm backdrop-blur-sm">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#e4ecd9] text-[#17613e]">
+            {/* Badge */}
+            <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-[#d9dfc9] bg-[#fffdf5]/90 px-3 py-2.5 shadow-sm backdrop-blur-sm sm:mb-6 sm:px-4">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e4ecd9] text-[#17613e]">
                 <Sparkles size={16} />
               </span>
-              <span className="text-xs font-bold tracking-[0.16em] text-[#42624a] sm:text-sm">
+
+              <span className="min-w-0 break-words text-[10px] font-bold tracking-[0.13em] text-[#42624a] sm:text-sm sm:tracking-[0.16em]">
                 {current.badge}
               </span>
             </div>
 
-            <h1 className="max-w-[680px] font-serif text-[clamp(3.1rem,6.1vw,5.6rem)] font-medium leading-[0.98] tracking-[-0.055em] text-[#153e2b]">
+            {/* Main heading */}
+            <h1 className="max-w-[680px] font-serif text-[clamp(2.8rem,10vw,4.5rem)] font-medium leading-[0.99] tracking-[-0.055em] text-[#153e2b] lg:text-[clamp(3.1rem,6.1vw,5.6rem)]">
               {current.title}
               <br />
               <span className="italic text-[#176541]">
@@ -209,15 +217,17 @@ export default function Hero({
               </span>
             </h1>
 
-            <p className="mt-7 max-w-[550px] rounded-2xl bg-[#fff8ec]/45 px-1 py-1 text-base leading-8 text-[#304c3c] sm:text-lg">
+            {/* Description */}
+            <p className="mt-5 max-w-[550px] rounded-2xl bg-[#fff8ec]/65 px-2 py-2 text-[15px] leading-7 text-[#304c3c] backdrop-blur-[2px] sm:mt-7 sm:text-lg sm:leading-8">
               {current.description}
             </p>
 
-            <div className="mt-7 flex flex-wrap items-center gap-3">
+            {/* CTA Buttons */}
+            <div className="mt-6 flex w-full flex-col items-stretch gap-3 sm:mt-7 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
               <button
                 type="button"
                 onClick={scrollToPlan}
-                className="inline-flex min-h-[48px] items-center gap-3 rounded-full bg-[#00613d] px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-[#173f2c]/15 transition hover:-translate-y-0.5 hover:bg-[#064c33]"
+                className="inline-flex min-h-[50px] w-full items-center justify-center gap-3 rounded-full bg-[#00613d] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#173f2c]/15 transition hover:-translate-y-0.5 hover:bg-[#064c33] sm:w-auto sm:px-7"
               >
                 {current.button}
                 <ArrowRight size={18} />
@@ -226,29 +236,33 @@ export default function Hero({
               <button
                 type="button"
                 onClick={onAskAyurAI}
-                className="inline-flex min-h-[48px] items-center gap-2 rounded-full border border-[#9caf96] bg-[#fffdf6]/85 px-6 py-3 text-sm font-medium text-[#244d35] shadow-sm backdrop-blur-sm transition hover:bg-white"
+                className="inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-full border border-[#9caf96] bg-[#fffdf6]/90 px-6 py-3 text-sm font-medium text-[#244d35] shadow-sm backdrop-blur-sm transition hover:bg-white sm:w-auto"
               >
                 <Sparkles size={17} />
                 Ask AyurAI
               </button>
             </div>
 
-            <div className="mt-7 flex flex-wrap gap-x-5 gap-y-3 text-sm font-medium text-[#315540]">
+            {/* Feature highlights */}
+            <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 text-xs font-medium text-[#315540] sm:mt-7 sm:text-sm">
               <span className="inline-flex items-center gap-2">
-                <Leaf size={16} className="text-[#176541]" />
+                <Leaf size={16} className="shrink-0 text-[#176541]" />
                 Ayurveda Inspired
               </span>
+
               <span className="inline-flex items-center gap-2">
-                <Sparkles size={16} className="text-[#a77816]" />
+                <Sparkles size={16} className="shrink-0 text-[#a77816]" />
                 AI Personalized
               </span>
+
               <span className="inline-flex items-center gap-2">
-                <Heart size={16} className="text-[#176541]" />
+                <Heart size={16} className="shrink-0 text-[#176541]" />
                 Wellness Focused
               </span>
             </div>
           </motion.div>
 
+          {/* DESKTOP WELLNESS VISUAL */}
           <div className="relative mx-auto hidden h-[420px] w-full max-w-[620px] lg:block">
             <motion.div
               initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }}
@@ -261,6 +275,7 @@ export default function Hero({
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e5efdf]/85 text-[#176541]">
                     <Leaf size={23} />
                   </div>
+
                   <div>
                     <p className="text-xs font-medium text-[#657765]">
                       YOUR WELLNESS
@@ -270,6 +285,7 @@ export default function Hero({
                     </p>
                   </div>
                 </div>
+
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e3efdc]/90 text-[#276c43]">
                   <Check size={18} />
                 </span>
@@ -279,9 +295,11 @@ export default function Hero({
                 <p className="text-xs font-bold tracking-[0.15em] text-[#70806b]">
                   YOUR SELECTED FOCUS
                 </p>
+
                 <h2 className="mt-2 font-serif text-[25px] leading-tight text-[#19462f]">
                   {current.title} {current.highlight}
                 </h2>
+
                 <p className="mt-3 text-sm leading-6 text-[#526a57]">
                   Small, mindful habits can help you build a consistent
                   wellness routine.
@@ -292,6 +310,7 @@ export default function Hero({
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/80 text-[#176541]">
                   <Sparkles size={19} />
                 </span>
+
                 <div>
                   <p className="text-sm font-semibold text-[#35583e]">
                     AyurAI Wellness Guide
@@ -311,6 +330,7 @@ export default function Hero({
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f6e9c9]/90 text-[#946d1d]">
                 <Moon size={19} />
               </span>
+
               <div>
                 <p className="text-xs text-[#738071]">Mindful living</p>
                 <p className="text-sm font-bold text-[#34523a]">
@@ -331,6 +351,7 @@ export default function Hero({
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e4efdf]/90 text-[#176541]">
                 <Brain size={19} />
               </span>
+
               <div>
                 <p className="text-xs text-[#71806f]">Your wellness focus</p>
                 <p className="text-sm font-bold text-[#34523a]">
@@ -347,14 +368,16 @@ export default function Hero({
           </div>
         </div>
 
-        <div className="relative z-20 -mt-1 rounded-[28px] border border-white/80 bg-[#fffdf7]/95 p-5 shadow-[0_20px_60px_rgba(52,58,36,0.12)] backdrop-blur-md sm:p-7">
-          <div className="mb-5 flex items-center justify-center gap-3 text-center text-xs font-bold tracking-[0.24em] text-[#4b6950] sm:text-sm">
-            <Leaf size={18} className="text-[#76916c]" />
-            CHOOSE YOUR WELLNESS GOAL
-            <Leaf size={18} className="rotate-180 text-[#76916c]" />
+        {/* WELLNESS GOAL PANEL */}
+        <div className="relative z-20 -mt-1 rounded-[24px] border border-white/80 bg-[#fffdf7]/95 p-4 shadow-[0_20px_60px_rgba(52,58,36,0.12)] backdrop-blur-md sm:rounded-[28px] sm:p-7">
+          <div className="mb-5 flex items-center justify-center gap-2 text-center text-[10px] font-bold tracking-[0.18em] text-[#4b6950] sm:gap-3 sm:text-sm sm:tracking-[0.24em]">
+            <Leaf size={17} className="shrink-0 text-[#76916c]" />
+            <span>CHOOSE YOUR WELLNESS GOAL</span>
+            <Leaf size={17} className="shrink-0 rotate-180 text-[#76916c]" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {/* Goal cards */}
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
             {goals.map((goal) => {
               const isSelected = activeGoal === goal.id;
 
@@ -364,7 +387,7 @@ export default function Hero({
                   type="button"
                   onClick={() => chooseGoal(goal.id)}
                   aria-pressed={isSelected}
-                  className={`relative flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-2xl border px-2 py-3 text-center transition duration-200 hover:-translate-y-0.5 ${
+                  className={`relative flex min-h-[88px] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border px-2 py-3 text-center transition duration-200 hover:-translate-y-0.5 ${
                     isSelected
                       ? "border-[#08613f] bg-[#08613f] text-white shadow-lg shadow-[#08613f]/15"
                       : "border-[#e7e3d6] bg-white/85 text-[#405644] hover:border-[#a9bea0] hover:bg-white"
@@ -373,9 +396,11 @@ export default function Hero({
                   <span className="text-2xl" aria-hidden="true">
                     {goal.emoji}
                   </span>
-                  <span className="text-xs font-semibold sm:text-[13px]">
+
+                  <span className="text-[11px] font-semibold leading-tight sm:text-[13px]">
                     {goal.title}
                   </span>
+
                   {isSelected && (
                     <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[#08613f]">
                       <Check size={11} strokeWidth={3} />
@@ -388,16 +413,18 @@ export default function Hero({
 
           <div className="my-5 border-t border-[#e7e2d5]" />
 
+          {/* Personalization inputs */}
           <div className="grid gap-5 md:grid-cols-2">
-            <label className="block">
+            <label className="block min-w-0">
               <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#425a46]">
-                <Utensils size={16} className="text-[#6e8a5d]" />
+                <Utensils size={16} className="shrink-0 text-[#6e8a5d]" />
                 What is your current diet?
               </span>
+
               <select
                 value={diet}
                 onChange={(event) => setDiet(event.target.value)}
-                className="min-h-[48px] w-full rounded-xl border border-[#dedfce] bg-white/90 px-4 text-sm text-[#465748] outline-none transition focus:border-[#729776] focus:ring-2 focus:ring-[#729776]/20"
+                className="min-h-[48px] w-full min-w-0 rounded-xl border border-[#dedfce] bg-white/90 px-4 text-sm text-[#465748] outline-none transition focus:border-[#729776] focus:ring-2 focus:ring-[#729776]/20"
               >
                 <option value="Vegetarian">Vegetarian</option>
                 <option value="Vegan">Vegan</option>
@@ -406,15 +433,16 @@ export default function Hero({
               </select>
             </label>
 
-            <label className="block">
+            <label className="block min-w-0">
               <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#425a46]">
-                <Leaf size={16} className="text-[#6e8a5d]" />
+                <Leaf size={16} className="shrink-0 text-[#6e8a5d]" />
                 What is your experience with Ayurveda?
               </span>
+
               <select
                 value={experience}
                 onChange={(event) => setExperience(event.target.value)}
-                className="min-h-[48px] w-full rounded-xl border border-[#dedfce] bg-white/90 px-4 text-sm text-[#465748] outline-none transition focus:border-[#729776] focus:ring-2 focus:ring-[#729776]/20"
+                className="min-h-[48px] w-full min-w-0 rounded-xl border border-[#dedfce] bg-white/90 px-4 text-sm text-[#465748] outline-none transition focus:border-[#729776] focus:ring-2 focus:ring-[#729776]/20"
               >
                 <option value="Beginner">Beginner</option>
                 <option value="Intermediate">Intermediate</option>
@@ -423,8 +451,8 @@ export default function Hero({
             </label>
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-2 text-center text-xs text-[#71816c]">
-            <ShieldCheck size={15} />
+          <div className="mt-5 flex items-center justify-center gap-2 text-center text-xs leading-5 text-[#71816c]">
+            <ShieldCheck size={15} className="shrink-0" />
             Your wellness preferences help personalize your experience.
           </div>
         </div>
